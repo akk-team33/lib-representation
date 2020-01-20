@@ -3,13 +3,7 @@ package de.team33.libs.representation.v0;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -22,6 +16,10 @@ public final class Normalizer {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static final Function<Class, BiFunction<Normalizer, Object, Object>> DEFAULT_PRODUCER =
             subjectClass -> (normalizer, subject) -> normalizer.normalFieldMap(subjectClass, subject);
+    private static final Function<Class<Object>, BiFunction<Normalizer, Object, Object>> ARRAY_PRODUCER =
+            subjectClass -> Normalizer::normalArray;
+    private static final Function<Class<Collection<?>>, BiFunction<Normalizer, Collection<?>, Object>> LIST_PRODUCER =
+            subjectClass -> Normalizer::normalList;
     private static final String NO_ACCESS = "cannot access field <%s> for subject <%s>";
     private static final Predicate<Field> FIELD_FILTER = field -> {
         final int modifiers = field.getModifiers();
@@ -57,7 +55,8 @@ public final class Normalizer {
     }
 
     public static Builder builder() {
-        return new Builder().addProducer(Class::isArray, subjectClass -> Normalizer::normalArray)
+        return new Builder().addProducer(Class::isArray, ARRAY_PRODUCER)
+                            .addProducer(Collection.class::isAssignableFrom, LIST_PRODUCER)
                             .addProducer(IS_VALUE_CLASS, subjectClass -> (normalizer, subject) -> subject)
                             .addMethod(Void.class, (normalizer, subject) -> subject);
     }
@@ -76,6 +75,12 @@ public final class Normalizer {
                        .collect(TreeMap::new,
                                (map, entry) -> map.put(entry.getKey(), normal(getValue(entry.getValue(), subject))),
                                Map::putAll);
+    }
+
+    public final List<Object> normalList(final Collection<?> subject) {
+        return subject.stream()
+                      .map(this::normal)
+                      .collect(Collectors.toList());
     }
 
     public final List<Object> normalArray(final Object array) {

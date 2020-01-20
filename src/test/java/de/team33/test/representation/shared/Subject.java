@@ -1,8 +1,8 @@
 package de.team33.test.representation.shared;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+
+import static java.util.Collections.*;
 
 public class Subject {
 
@@ -11,7 +11,8 @@ public class Subject {
     private Number theNumber;
     private byte[] theByteArray = {};
     private Object theObject;
-    private List<? extends Subject> theSubjectList;
+    private List<Subject> theSubjectList;
+    private Set<Subject> theSubjectSet;
 
     public final int getThePrimitive() {
         return thePrimitive;
@@ -59,11 +60,20 @@ public class Subject {
     }
 
     public final List<Subject> getTheSubjectList() {
-        return (null == theSubjectList) ? null : Collections.unmodifiableList(theSubjectList);
+        return (null == theSubjectList) ? null : unmodifiableList(theSubjectList);
     }
 
-    public final Subject setTheSubjectList(final List<? extends Subject> theSubjectList) {
+    public final Subject setTheSubjectList(final Collection<? extends Subject> theSubjectList) {
         this.theSubjectList = (null == theSubjectList) ? null : new ArrayList<>(theSubjectList);
+        return this;
+    }
+
+    public final Set<Subject> getTheSubjectSet() {
+        return (null == theSubjectSet) ? null : unmodifiableSet(theSubjectSet);
+    }
+
+    public final Subject setTheSubjectSet(final Collection<? extends Subject> theSubjectSet) {
+        this.theSubjectSet = (null == theSubjectSet) ? null : new HashSet<>(theSubjectSet);
         return this;
     }
 }

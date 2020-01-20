@@ -21,7 +21,8 @@ public class NormalizerTest {
                                              .setTheString(anyString())
                                              .setTheNumber(random.nextDouble())
                                              .setTheByteArray(anyBytes())
-                                             .setTheSubjectList(Collections.singletonList(new Subject()));
+                                             .setTheSubjectList(Collections.singleton(new Subject()))
+                                             .setTheSubjectSet(Collections.singletonList(new Subject()));
         final Object result = normalizer.normal(subject);
         assertEquals(expected(subject), result);
     }
@@ -34,7 +35,12 @@ public class NormalizerTest {
         result.put("theByteArray", expected(subject.getTheByteArray()));
         result.put("theObject", subject.getTheObject());
         result.put("theSubjectList", expected(subject.getTheSubjectList()));
+        result.put("theSubjectSet", expected(subject.getTheSubjectSet()));
         return result;
+    }
+
+    private static Set<?> expected(final Set<? extends Subject> subjects) {
+        return (null == subjects) ? null : subjects.stream().map(NormalizerTest::expected).collect(Collectors.toSet());
     }
 
     private static List<?> expected(final List<? extends Subject> subjects) {
@@ -56,6 +62,6 @@ public class NormalizerTest {
     }
 
     private String anyString() {
-        return new BigInteger(128, random).toString(Character.MAX_RADIX);
+        return new BigInteger(random.nextInt(128) + 1, random).toString(Character.MAX_RADIX);
     }
 }
