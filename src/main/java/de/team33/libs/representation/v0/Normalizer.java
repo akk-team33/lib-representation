@@ -13,9 +13,6 @@ import java.util.stream.Stream;
 
 public final class Normalizer {
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static final Function<Class, BiFunction<Normalizer, Object, Object>> DEFAULT_PRODUCER =
-            subjectClass -> (normalizer, subject) -> normalizer.normalFieldMap(subjectClass, subject);
     private static final Function<Class<Object>, BiFunction<Normalizer, Object, Object>> ARRAY_PRODUCER =
             subjectClass -> Normalizer::normalArray;
     private static final Function<Class<Collection<?>>, BiFunction<Normalizer, Collection<?>, Object>> LIST_PRODUCER =
@@ -25,6 +22,9 @@ public final class Normalizer {
         final int modifiers = field.getModifiers();
         return !(Modifier.isStatic(modifiers) || Modifier.isTransient(modifiers));
     };
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static final Function<Class, BiFunction<Normalizer, Object, Object>> DEFAULT_PRODUCER =
+            subjectClass -> (normalizer, subject) -> normalizer.normalFieldMap(subjectClass, subject);
     private static final Predicate<Class<?>> IS_VALUE_CLASS = subjectClass -> {
         try {
             final boolean defaultEquals = isDefault(subjectClass, "equals", Object.class);
@@ -35,6 +35,14 @@ public final class Normalizer {
             return false;
         }
     };
+    @SuppressWarnings("rawtypes")
+    private final Map<Class, BiFunction> methods;
+    @SuppressWarnings("rawtypes")
+    private final List<Entry> producers;
+    private Normalizer(final Builder builder) {
+        methods = new ConcurrentHashMap<>(builder.methods);
+        producers = new ArrayList<>(builder.producers);
+    }
 
     private static boolean isDefault(final Class<?> subjectClass,
                                      final String methodName,
@@ -44,16 +52,6 @@ public final class Normalizer {
                            .equals(Object.class);
     }
 
-    @SuppressWarnings("rawtypes")
-    private final Map<Class, BiFunction> methods;
-    @SuppressWarnings("rawtypes")
-    private final List<Entry> producers;
-
-    private Normalizer(final Builder builder) {
-        methods = new ConcurrentHashMap<>(builder.methods);
-        producers = new ArrayList<>(builder.producers);
-    }
-
     public static Builder builder() {
         return new Builder().addProducer(Class::isArray, ARRAY_PRODUCER)
                             .addProducer(Collection.class::isAssignableFrom, LIST_PRODUCER)
@@ -61,12 +59,20 @@ public final class Normalizer {
                             .addMethod(Void.class, (normalizer, subject) -> subject);
     }
 
+    private static Object getValue(final Field field, final Object subject) {
+        try {
+            return field.get(subject);
+        } catch (final IllegalAccessException caught) {
+            throw new IllegalStateException(String.format(NO_ACCESS, field, subject), caught);
+        }
+    }
+
     public final Object normal(final Object subject) {
         final Class<?> subjectClass = (null == subject) ? Void.class : subject.getClass();
         return getMethod(subjectClass).apply(this, subject);
     }
 
-    public final <T> Map<String, Object> normalFieldMap(final Class<T> subjectClass, final T subject) {
+    public final Map<String, Object> normalFieldMap(final Class<?> subjectClass, final Object subject) {
         final Map<String, Field> fieldMap = Stream.of(subjectClass.getDeclaredFields())
                                                   .filter(FIELD_FILTER)
                                                   .peek(field -> field.setAccessible(true))
@@ -92,6 +98,14 @@ public final class Normalizer {
         return result;
     }
 
+    public final Set<?> normalSet(final Set<?> subject) {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    public final Map<?, ?> normalMap(final Map<?, ?> subject) {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
     private BiFunction<Normalizer, Object, Object> getMethod(final Class<?> subjectClass) {
         //noinspection unchecked
         return Optional.ofNullable(methods.get(subjectClass))
@@ -113,11 +127,23 @@ public final class Normalizer {
                         .orElse(DEFAULT_PRODUCER);
     }
 
-    private static Object getValue(final Field field, final Object subject) {
-        try {
-            return field.get(subject);
-        } catch (final IllegalAccessException caught) {
-            throw new IllegalStateException(String.format(NO_ACCESS, field, subject), caught);
+    private enum Category {
+
+        DIRECT(IS_VALUE_CLASS, subjectClass -> (normalizer, subject) -> subject),
+        ARRAY(Class::isArray, subjectClass -> Normalizer::normalArray),
+        SET(Set.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalSet((Set<?>) subject)),
+        LIST(Collection.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalList((Collection<?>) subject)),
+        MAP(Map.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalMap((Map<?, ?>) subject)),
+        FIELD_MAPPED(
+                subjectClass -> true,
+                subjectClass -> (normalizer, subject) -> normalizer.normalFieldMap(subjectClass, subject));
+
+        private final Predicate<Class<?>> filter;
+        private final Function<Class<?>, BiFunction<Normalizer, Object, Object>> producer;
+
+        Category(final Predicate<Class<?>> filter, final Function<Class<?>, BiFunction<Normalizer, Object, Object>> producer) {
+            this.filter = filter;
+            this.producer = producer;
         }
     }
 
