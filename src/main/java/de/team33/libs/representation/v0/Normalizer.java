@@ -3,7 +3,14 @@ package de.team33.libs.representation.v0;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -13,18 +20,11 @@ import java.util.stream.Stream;
 
 public final class Normalizer {
 
-    private static final Function<Class<Object>, BiFunction<Normalizer, Object, Object>> ARRAY_PRODUCER =
-            subjectClass -> Normalizer::normalArray;
-    private static final Function<Class<Collection<?>>, BiFunction<Normalizer, Collection<?>, Object>> LIST_PRODUCER =
-            subjectClass -> Normalizer::normalList;
     private static final String NO_ACCESS = "cannot access field <%s> for subject <%s>";
     private static final Predicate<Field> FIELD_FILTER = field -> {
         final int modifiers = field.getModifiers();
         return !(Modifier.isStatic(modifiers) || Modifier.isTransient(modifiers));
     };
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static final Function<Class, BiFunction<Normalizer, Object, Object>> DEFAULT_PRODUCER =
-            subjectClass -> (normalizer, subject) -> normalizer.normalFieldMap(subjectClass, subject);
     private static final Predicate<Class<?>> IS_VALUE_CLASS = subjectClass -> {
         try {
             final boolean defaultEquals = isDefault(subjectClass, "equals", Object.class);
@@ -117,12 +117,22 @@ public final class Normalizer {
 
     private enum Category {
 
-        VOID(Void.class::equals, subjectClass -> (normalizer, subject) -> subject),
+        NULL(Void.class::equals,
+                subjectClass -> (normalizer, subject) -> subject),
+
         ARRAY(Class::isArray, subjectClass -> Normalizer::normalArray),
-        SET(Set.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalSet((Set<?>) subject)),
-        LIST(Collection.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalList((Collection<?>) subject)),
-        MAP(Map.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalMap((Map<?, ?>) subject)),
-        SIMPLE(IS_VALUE_CLASS, subjectClass -> (normalizer, subject) -> subject),
+
+        SET(Set.class::isAssignableFrom,
+                subjectClass -> (normalizer, subject) -> normalizer.normalSet((Set<?>) subject)),
+
+        LIST(Collection.class::isAssignableFrom,
+                subjectClass -> (normalizer, subject) -> normalizer.normalList((Collection<?>) subject)),
+
+        MAP(Map.class::isAssignableFrom,
+                subjectClass -> (normalizer, subject) -> normalizer.normalMap((Map<?, ?>) subject)),
+
+        SIMPLE(IS_VALUE_CLASS,
+                subjectClass -> (normalizer, subject) -> subject),
         FIELD_MAPPED(
                 subjectClass -> true,
                 subjectClass -> (normalizer, subject) -> normalizer.normalFieldMap(subjectClass, subject));
@@ -130,7 +140,8 @@ public final class Normalizer {
         private final Predicate<Class<?>> filter;
         private final Function<Class<?>, BiFunction<Normalizer, Object, Object>> producer;
 
-        Category(final Predicate<Class<?>> filter, final Function<Class<?>, BiFunction<Normalizer, Object, Object>> producer) {
+        Category(final Predicate<Class<?>> filter,
+                 final Function<Class<?>, BiFunction<Normalizer, Object, Object>> producer) {
             this.filter = filter;
             this.producer = producer;
         }
