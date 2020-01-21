@@ -23,13 +23,9 @@ public class NormalizerTest {
                                              .setTheString(anyString())
                                              .setTheNumber(random.nextDouble())
                                              .setTheByteArray(anyBytes())
-                                             .setTheList(asList(random.nextInt(), anyString(), new Date(), new Subject(), null))
-                                             .setTheSet(asList(random.nextInt(), anyBytes(), new Date(), new Subject(), null))
-                                             .setTheMap(ImmutableMap.builder()
-                                                                    .put(anyString(), anyBytes())
-                                                                    .put(random.nextInt(), new Subject())
-                                                                    .put(new Subject(), new Date())
-                                                                    .build());
+                                             .setTheList(anyList())
+                                             .setTheSet(anyList())
+                                             .setTheMap(anyMap());
         final Object result = normalizer.normal(subject);
         assertEquals(expected(subject), result);
     }
@@ -58,11 +54,10 @@ public class NormalizerTest {
     private static Map<?, ?> expected(final Map<?, ?> subjects) {
         return (null == subjects)
                 ? null
-                : subjects.entrySet().stream()
-                          .collect(
-                                  Collectors.toMap(
-                                          entry -> expected(entry.getKey()),
-                                          entry -> expected(entry.getValue())));
+                : subjects.entrySet().stream().collect(
+                HashMap::new, (map, entry) -> map.put(
+                        expected(entry.getKey()),
+                        expected(entry.getValue())), Map::putAll);
     }
 
     private static Object expected(final Object subject) {
@@ -90,5 +85,19 @@ public class NormalizerTest {
 
     private String anyString() {
         return new BigInteger(random.nextInt(128) + 1, random).toString(Character.MAX_RADIX);
+    }
+
+    private List<Object> anyList() {
+        return asList(random.nextInt(), anyString(), anyBytes(), new Date(), new Subject(), null);
+    }
+
+    private Map<Object, Object> anyMap() {
+        final Map<Object, Object> result = new HashMap<>(4);
+        result.put(anyString(), anyBytes());
+        result.put(random.nextInt(), new Subject());
+        result.put(new Subject(), new Date());
+        result.put(null, random.nextDouble());
+        result.put(random.nextLong(), null);
+        return result;
     }
 }

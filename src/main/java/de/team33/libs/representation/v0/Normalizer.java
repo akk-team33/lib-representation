@@ -111,9 +111,8 @@ public final class Normalizer {
     }
 
     public final Map<?, ?> normalMap(final Map<?, ?> subject) {
-        return subject.entrySet().stream().collect(Collectors.toMap(
-                entry -> normal(entry.getKey()),
-                entry -> normal(entry.getValue())));
+        return subject.entrySet().stream().collect(
+                HashMap::new, (map, entry) -> map.put(normal(entry.getKey()), normal(entry.getValue())), Map::putAll);
     }
 
     private enum Category {
