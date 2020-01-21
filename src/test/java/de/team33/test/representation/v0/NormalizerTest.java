@@ -1,12 +1,18 @@
 package de.team33.test.representation.v0;
 
-import com.google.common.collect.ImmutableMap;
 import de.team33.libs.representation.v0.Normalizer;
 import de.team33.test.representation.shared.Subject;
 import org.junit.Test;
 
 import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -15,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 public class NormalizerTest {
 
     private final Random random = new Random();
-    private final Normalizer normalizer = Normalizer.builder().build();
+    private final Normalizer normalizer = Normalizer.DEFAULT;
 
     @Test
     public final void normal() {

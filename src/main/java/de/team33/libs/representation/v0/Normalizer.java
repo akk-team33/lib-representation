@@ -20,6 +20,8 @@ import java.util.stream.Stream;
 
 public final class Normalizer {
 
+    public static final Normalizer DEFAULT = builder().build();
+
     private static final String NO_ACCESS = "cannot access field <%s> for subject <%s>";
     private static final Predicate<Field> FIELD_FILTER = field -> {
         final int modifiers = field.getModifiers();
