@@ -11,8 +11,9 @@ public class Subject {
     private Number theNumber;
     private byte[] theByteArray = {};
     private Object theObject;
-    private List<Subject> theSubjectList;
-    private Set<Subject> theSubjectSet;
+    private List<Object> theList;
+    private Set<Object> theSet;
+    private Map<Object, Object> theMap;
 
     public final int getThePrimitive() {
         return thePrimitive;
@@ -59,21 +60,36 @@ public class Subject {
         return this;
     }
 
-    public final List<Subject> getTheSubjectList() {
-        return (null == theSubjectList) ? null : unmodifiableList(theSubjectList);
+    public final List<Object> getTheList() {
+        //noinspection ReturnOfNull
+        return (null == theList) ? null : unmodifiableList(theList);
     }
 
-    public final Subject setTheSubjectList(final Collection<? extends Subject> theSubjectList) {
-        this.theSubjectList = (null == theSubjectList) ? null : new ArrayList<>(theSubjectList);
+    public final Subject setTheList(final Collection<?> theList) {
+        //noinspection AssignmentToNull
+        this.theList = (null == theList) ? null : new ArrayList<>(theList);
         return this;
     }
 
-    public final Set<Subject> getTheSubjectSet() {
-        return (null == theSubjectSet) ? null : unmodifiableSet(theSubjectSet);
+    public final Set<Object> getTheSet() {
+        //noinspection ReturnOfNull
+        return (null == theSet) ? null : unmodifiableSet(theSet);
     }
 
-    public final Subject setTheSubjectSet(final Collection<? extends Subject> theSubjectSet) {
-        this.theSubjectSet = (null == theSubjectSet) ? null : new HashSet<>(theSubjectSet);
+    public final Subject setTheSet(final Collection<?> theSet) {
+        //noinspection AssignmentToNull
+        this.theSet = (null == theSet) ? null : new HashSet<>(theSet);
+        return this;
+    }
+
+    public final Map<Object, Object> getTheMap() {
+        //noinspection ReturnOfNull
+        return (null == theMap) ? null : unmodifiableMap(theMap);
+    }
+
+    public final Subject setTheMap(final Map<?, ?> theMap) {
+        //noinspection AssignmentToNull
+        this.theMap = (null == theMap) ? null : new HashMap<>(theMap);
         return this;
     }
 }

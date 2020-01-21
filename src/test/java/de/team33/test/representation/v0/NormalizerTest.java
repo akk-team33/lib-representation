@@ -1,5 +1,6 @@
 package de.team33.test.representation.v0;
 
+import com.google.common.collect.ImmutableMap;
 import de.team33.libs.representation.v0.Normalizer;
 import de.team33.test.representation.shared.Subject;
 import org.junit.Test;
@@ -8,6 +9,7 @@ import java.math.BigInteger;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
 public class NormalizerTest {
@@ -21,8 +23,13 @@ public class NormalizerTest {
                                              .setTheString(anyString())
                                              .setTheNumber(random.nextDouble())
                                              .setTheByteArray(anyBytes())
-                                             .setTheSubjectList(Collections.singleton(new Subject()))
-                                             .setTheSubjectSet(Collections.singletonList(new Subject()));
+                                             .setTheList(asList(random.nextInt(), anyString(), new Date(), new Subject(), null))
+                                             .setTheSet(asList(random.nextInt(), anyBytes(), new Date(), new Subject(), null))
+                                             .setTheMap(ImmutableMap.builder()
+                                                                    .put(anyString(), anyBytes())
+                                                                    .put(random.nextInt(), new Subject())
+                                                                    .put(new Subject(), new Date())
+                                                                    .build());
         final Object result = normalizer.normal(subject);
         assertEquals(expected(subject), result);
     }
@@ -34,17 +41,37 @@ public class NormalizerTest {
         result.put("theNumber", subject.getTheNumber());
         result.put("theByteArray", expected(subject.getTheByteArray()));
         result.put("theObject", subject.getTheObject());
-        result.put("theSubjectList", expected(subject.getTheSubjectList()));
-        result.put("theSubjectSet", expected(subject.getTheSubjectSet()));
+        result.put("theList", expected(subject.getTheList()));
+        result.put("theSet", expected(subject.getTheSet()));
+        result.put("theMap", expected(subject.getTheMap()));
         return result;
     }
 
-    private static Set<?> expected(final Set<? extends Subject> subjects) {
+    private static Set<?> expected(final Set<?> subjects) {
         return (null == subjects) ? null : subjects.stream().map(NormalizerTest::expected).collect(Collectors.toSet());
     }
 
-    private static List<?> expected(final List<? extends Subject> subjects) {
+    private static List<?> expected(final List<?> subjects) {
         return (null == subjects) ? null : subjects.stream().map(NormalizerTest::expected).collect(Collectors.toList());
+    }
+
+    private static Map<?, ?> expected(final Map<?, ?> subjects) {
+        return (null == subjects)
+                ? null
+                : subjects.entrySet().stream()
+                          .collect(
+                                  Collectors.toMap(
+                                          entry -> expected(entry.getKey()),
+                                          entry -> expected(entry.getValue())));
+    }
+
+    private static Object expected(final Object subject) {
+        if (subject instanceof byte[]) return expected((byte[]) subject);
+        if (subject instanceof Subject) return expected((Subject) subject);
+        if (subject instanceof Set) return expected((Set<?>) subject);
+        if (subject instanceof List) return expected((List<?>) subject);
+        if (subject instanceof Map) return expected((Map<?, ?>) subject);
+        return subject;
     }
 
     private static List<Byte> expected(final byte[] bytes) {

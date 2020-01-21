@@ -37,11 +37,8 @@ public final class Normalizer {
     };
     @SuppressWarnings("rawtypes")
     private final Map<Class, BiFunction> methods;
-    @SuppressWarnings("rawtypes")
-    private final List<Entry> producers;
     private Normalizer(final Builder builder) {
         methods = new ConcurrentHashMap<>(builder.methods);
-        producers = new ArrayList<>(builder.producers);
     }
 
     private static boolean isDefault(final Class<?> subjectClass,
@@ -53,10 +50,7 @@ public final class Normalizer {
     }
 
     public static Builder builder() {
-        return new Builder().addProducer(Class::isArray, ARRAY_PRODUCER)
-                            .addProducer(Collection.class::isAssignableFrom, LIST_PRODUCER)
-                            .addProducer(IS_VALUE_CLASS, subjectClass -> (normalizer, subject) -> subject)
-                            .addMethod(Void.class, (normalizer, subject) -> subject);
+        return new Builder();
     }
 
     private static Object getValue(final Field field, final Object subject) {
@@ -72,6 +66,18 @@ public final class Normalizer {
         return getMethod(subjectClass).apply(this, subject);
     }
 
+    private BiFunction<Normalizer, Object, Object> getMethod(final Class<?> subjectClass) {
+        //noinspection unchecked
+        return Optional.ofNullable(methods.get(subjectClass))
+                       .orElseGet(() -> {
+
+                           //noinspection rawtypes
+                           final BiFunction result = Category.of(subjectClass).producer.apply(subjectClass);
+                           methods.put(subjectClass, result);
+                           return result;
+                       });
+    }
+
     public final Map<String, Object> normalFieldMap(final Class<?> subjectClass, final Object subject) {
         final Map<String, Field> fieldMap = Stream.of(subjectClass.getDeclaredFields())
                                                   .filter(FIELD_FILTER)
@@ -83,12 +89,6 @@ public final class Normalizer {
                                Map::putAll);
     }
 
-    public final List<Object> normalList(final Collection<?> subject) {
-        return subject.stream()
-                      .map(this::normal)
-                      .collect(Collectors.toList());
-    }
-
     public final List<Object> normalArray(final Object array) {
         final int length = Array.getLength(array);
         final List<Object> result = new ArrayList<>(length);
@@ -98,42 +98,32 @@ public final class Normalizer {
         return result;
     }
 
+    public final List<Object> normalList(final Collection<?> subject) {
+        return subject.stream()
+                      .map(this::normal)
+                      .collect(Collectors.toList());
+    }
+
     public final Set<?> normalSet(final Set<?> subject) {
-        throw new UnsupportedOperationException("not yet implemented");
+        return subject.stream()
+                      .map(this::normal)
+                      .collect(Collectors.toSet());
     }
 
     public final Map<?, ?> normalMap(final Map<?, ?> subject) {
-        throw new UnsupportedOperationException("not yet implemented");
-    }
-
-    private BiFunction<Normalizer, Object, Object> getMethod(final Class<?> subjectClass) {
-        //noinspection unchecked
-        return Optional.ofNullable(methods.get(subjectClass))
-                       .orElseGet(() -> {
-                           //noinspection rawtypes
-                           final BiFunction result = getProducer(subjectClass).apply(subjectClass);
-                           methods.put(subjectClass, result);
-                           return result;
-                       });
-    }
-
-    @SuppressWarnings("rawtypes")
-    private Function<Class, BiFunction> getProducer(final Class subjectClass) {
-        //noinspection unchecked
-        return producers.stream()
-                        .filter(entry -> entry.filter.test(subjectClass))
-                        .findAny()
-                        .map(entry -> entry.producer)
-                        .orElse(DEFAULT_PRODUCER);
+        return subject.entrySet().stream().collect(Collectors.toMap(
+                entry -> normal(entry.getKey()),
+                entry -> normal(entry.getValue())));
     }
 
     private enum Category {
 
-        DIRECT(IS_VALUE_CLASS, subjectClass -> (normalizer, subject) -> subject),
+        VOID(Void.class::equals, subjectClass -> (normalizer, subject) -> subject),
         ARRAY(Class::isArray, subjectClass -> Normalizer::normalArray),
         SET(Set.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalSet((Set<?>) subject)),
         LIST(Collection.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalList((Collection<?>) subject)),
         MAP(Map.class::isAssignableFrom, subjectClass -> (normalizer, subject) -> normalizer.normalMap((Map<?, ?>) subject)),
+        SIMPLE(IS_VALUE_CLASS, subjectClass -> (normalizer, subject) -> subject),
         FIELD_MAPPED(
                 subjectClass -> true,
                 subjectClass -> (normalizer, subject) -> normalizer.normalFieldMap(subjectClass, subject));
@@ -145,17 +135,12 @@ public final class Normalizer {
             this.filter = filter;
             this.producer = producer;
         }
-    }
 
-    private static final class Entry<T> {
-
-        private final Predicate<Class<?>> filter;
-        private final Function<Class<T>, BiFunction<Normalizer, T, Object>> producer;
-
-        private Entry(final Predicate<Class<?>> filter,
-                      final Function<Class<T>, BiFunction<Normalizer, T, Object>> producer) {
-            this.filter = filter;
-            this.producer = producer;
+        private static Category of(final Class<?> subjectClass) {
+            return Stream.of(values())
+                         .filter(value -> value.filter.test(subjectClass))
+                         .findFirst()
+                         .orElse(FIELD_MAPPED);
         }
     }
 
@@ -163,8 +148,6 @@ public final class Normalizer {
 
         @SuppressWarnings("rawtypes")
         private final Map<Class, BiFunction> methods = new HashMap<>(0);
-        @SuppressWarnings("rawtypes")
-        private final List<Entry> producers = new LinkedList<>();
 
         private Builder() {
         }
@@ -176,12 +159,6 @@ public final class Normalizer {
         public final <T> Builder addMethod(final Class<T> subjectClass,
                                            final BiFunction<Normalizer, T, Object> method) {
             methods.put(subjectClass, method);
-            return this;
-        }
-
-        public final <T> Builder addProducer(final Predicate<Class<?>> filter,
-                                             final Function<Class<T>, BiFunction<Normalizer, T, Object>> method) {
-            producers.add(new Entry<T>(filter, method));
             return this;
         }
     }
